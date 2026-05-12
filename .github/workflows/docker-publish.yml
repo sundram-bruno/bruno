@@ -71,25 +71,25 @@ jobs:
           push: true
           build-args: BRUNO_VERSION=${{ steps.version.outputs.full }}
           tags: |
-            usebruno/cli:alpine
-            usebruno/cli:${{ steps.version.outputs.full }}
-            usebruno/cli:${{ steps.version.outputs.full }}-alpine
-            usebruno/cli:${{ steps.version.outputs.minor }}
-            usebruno/cli:${{ steps.version.outputs.minor }}-alpine
-            usebruno/cli:${{ steps.version.outputs.major }}
-            usebruno/cli:${{ steps.version.outputs.major }}-alpine
-            ghcr.io/usebruno/cli:alpine
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.full }}
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.full }}-alpine
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.minor }}
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.minor }}-alpine
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.major }}
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.major }}-alpine
-            ${{ github.event.inputs.tag_as_latest == 'true' && 'usebruno/cli:latest' || '' }}
-            ${{ github.event.inputs.tag_as_latest == 'true' && 'ghcr.io/usebruno/cli:latest' || '' }}
+            sundrambruno/cli:alpine
+            sundrambruno/cli:${{ steps.version.outputs.full }}
+            sundrambruno/cli:${{ steps.version.outputs.full }}-alpine
+            sundrambruno/cli:${{ steps.version.outputs.minor }}
+            sundrambruno/cli:${{ steps.version.outputs.minor }}-alpine
+            sundrambruno/cli:${{ steps.version.outputs.major }}
+            sundrambruno/cli:${{ steps.version.outputs.major }}-alpine
+            ghcr.io/sundram-bruno/cli:alpine
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.full }}
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.full }}-alpine
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.minor }}
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.minor }}-alpine
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.major }}
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.major }}-alpine
+            ${{ github.event.inputs.tag_as_latest == 'true' && 'sundrambruno/cli:latest' || '' }}
+            ${{ github.event.inputs.tag_as_latest == 'true' && 'ghcr.io/sundram-bruno/cli:latest' || '' }}
 
       - name: Smoke test alpine
-        run: ./packages/bruno-cli/docker/smoke-test.sh usebruno/cli:${{ steps.version.outputs.full }}
+        run: ./packages/bruno-cli/docker/smoke-test.sh sundrambruno/cli:${{ steps.version.outputs.full }}
 
       # ── Debian ────────────────────────────────────────────────────────────
 
@@ -101,14 +101,14 @@ jobs:
           push: true
           build-args: BRUNO_VERSION=${{ steps.version.outputs.full }}
           tags: |
-            usebruno/cli:debian
-            usebruno/cli:${{ steps.version.outputs.full }}-debian
-            usebruno/cli:${{ steps.version.outputs.minor }}-debian
-            usebruno/cli:${{ steps.version.outputs.major }}-debian
-            ghcr.io/usebruno/cli:debian
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.full }}-debian
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.minor }}-debian
-            ghcr.io/usebruno/cli:${{ steps.version.outputs.major }}-debian
+            sundrambruno/cli:debian
+            sundrambruno/cli:${{ steps.version.outputs.full }}-debian
+            sundrambruno/cli:${{ steps.version.outputs.minor }}-debian
+            sundrambruno/cli:${{ steps.version.outputs.major }}-debian
+            ghcr.io/sundram-bruno/cli:debian
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.full }}-debian
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.minor }}-debian
+            ghcr.io/sundram-bruno/cli:${{ steps.version.outputs.major }}-debian
 
       - name: Smoke test debian
-        run: ./packages/bruno-cli/docker/smoke-test.sh usebruno/cli:${{ steps.version.outputs.full }}-debian
+        run: ./packages/bruno-cli/docker/smoke-test.sh sundrambruno/cli:${{ steps.version.outputs.full }}-debian
