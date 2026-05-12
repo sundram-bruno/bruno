@@ -112,3 +112,13 @@ jobs:
 
       - name: Smoke test debian
         run: ./packages/bruno-cli/docker/smoke-test.sh sundrambruno/cli:${{ steps.version.outputs.full }}-debian
+
+      # ── Docker Hub description ─────────────────────────────────────────────
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: sundrambruno/cli
+          readme-filepath: ./packages/bruno-cli/docker/README.md

@@ -9,10 +9,10 @@ docker/
   ├── README.md           ← you are here
   └── images/
       ├── alpine/
-      │   ├── Dockerfile  ← Alpine Linux variant (smallest, ~141MB)
+      │   ├── Dockerfile  ← Alpine Linux variant (smallest)
       │   └── README.md
       └── debian/
-          ├── Dockerfile  ← Debian slim variant (~200MB+, glibc support)
+          ├── Dockerfile  ← Debian slim variant (glibc support)
           └── README.md
 ```
 
