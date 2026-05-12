@@ -20,10 +20,12 @@ docker/
 
 ## Registries
 
-```bash
-docker pull usebruno/cli:latest
-docker pull ghcr.io/usebruno/cli:latest
-```
+Images are published to two registries — use whichever you prefer:
+
+| Registry | Pull command |
+|----------|-------------|
+| **Docker Hub** | `docker pull usebruno/cli:latest` |
+| **GHCR** | `docker pull ghcr.io/usebruno/cli:latest` |
 
 ---
 
@@ -43,15 +45,16 @@ docker pull ghcr.io/usebruno/cli:latest
 
 ## Tags
 
-| Tag | Example | Variant |
-|-----|---------|---------|
-| `latest` | `usebruno/cli:latest` | alpine |
-| `<version>` | `usebruno/cli:3.3.0` | alpine |
-| `<major.minor>` | `usebruno/cli:3.3` | alpine |
-| `<major>` | `usebruno/cli:3` | alpine |
-| `<version>-alpine` | `usebruno/cli:3.3.0-alpine` | alpine |
-| `<version>-debian` | `usebruno/cli:3.3.0-debian` | debian |
-| `debian` | `usebruno/cli:debian` | debian |
+| Tag | Docker Hub | GHCR |
+|-----|-----------|------|
+| `latest` | `usebruno/cli:latest` | `ghcr.io/usebruno/cli:latest` |
+| `<version>` | `usebruno/cli:3.3.0` | `ghcr.io/usebruno/cli:3.3.0` |
+| `<major.minor>` | `usebruno/cli:3.3` | `ghcr.io/usebruno/cli:3.3` |
+| `<major>` | `usebruno/cli:3` | `ghcr.io/usebruno/cli:3` |
+| `<version>-alpine` | `usebruno/cli:3.3.0-alpine` | `ghcr.io/usebruno/cli:3.3.0-alpine` |
+| `<version>-debian` | `usebruno/cli:3.3.0-debian` | `ghcr.io/usebruno/cli:3.3.0-debian` |
+| `alpine` | `usebruno/cli:alpine` | `ghcr.io/usebruno/cli:alpine` |
+| `debian` | `usebruno/cli:debian` | `ghcr.io/usebruno/cli:debian` |
 
 ---
 
@@ -62,16 +65,21 @@ docker pull ghcr.io/usebruno/cli:latest
 ```bash
 # latest (alpine by default — smallest, fastest to pull)
 docker pull usebruno/cli:latest
+docker pull ghcr.io/usebruno/cli:latest
 
 # specific version (recommended for production CI)
 docker pull usebruno/cli:3.3.0
+docker pull ghcr.io/usebruno/cli:3.3.0
 
 # major.minor — gets patch updates automatically
 docker pull usebruno/cli:3.3
+docker pull ghcr.io/usebruno/cli:3.3
 
 # debian variant
 docker pull usebruno/cli:debian
 docker pull usebruno/cli:3.3.0-debian
+docker pull ghcr.io/usebruno/cli:debian
+docker pull ghcr.io/usebruno/cli:3.3.0-debian
 ```
 
 ---
@@ -79,7 +87,11 @@ docker pull usebruno/cli:3.3.0-debian
 ### Step 2 — Check it works
 
 ```bash
+# Docker Hub
 docker run --rm usebruno/cli --version
+
+# GHCR
+docker run --rm ghcr.io/usebruno/cli --version
 ```
 
 ---
@@ -91,12 +103,15 @@ docker run --rm usebruno/cli --version
 ```bash
 # collection at your current directory
 docker run --rm -v $(pwd):/bruno usebruno/cli run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli run --env staging
 
 # collection in a subfolder
 docker run --rm -v $(pwd):/bruno usebruno/cli run ./api-tests --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli run ./api-tests --env staging
 
 # single request file
 docker run --rm -v $(pwd):/bruno usebruno/cli run ./api-tests/login.bru --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli run ./api-tests/login.bru --env staging
 ```
 
 ---
@@ -104,9 +119,15 @@ docker run --rm -v $(pwd):/bruno usebruno/cli run ./api-tests/login.bru --env st
 ### Step 4 — Choose your environment
 
 ```bash
+# Docker Hub
 docker run --rm -v $(pwd):/bruno usebruno/cli run --env local
 docker run --rm -v $(pwd):/bruno usebruno/cli run --env staging
 docker run --rm -v $(pwd):/bruno usebruno/cli run --env production
+
+# GHCR
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli run --env local
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli run --env production
 ```
 
 ---
@@ -131,6 +152,11 @@ docker run --rm \
   -v $(pwd):/bruno \
   --env-file .env \
   usebruno/cli run --env staging
+
+# same commands work with GHCR — just replace usebruno/cli with ghcr.io/usebruno/cli
+docker run --rm \
+  -v $(pwd):/bruno \
+  ghcr.io/usebruno/cli run --env staging --env-var API_KEY=your_key
 ```
 
 ---
@@ -147,6 +173,11 @@ docker run --rm \
 docker run --rm \
   -v $(pwd):/bruno \
   usebruno/cli run --env staging --output results.xml --format junit
+
+# same with GHCR
+docker run --rm \
+  -v $(pwd):/bruno \
+  ghcr.io/usebruno/cli run --env staging --output results.xml --format junit
 ```
 
 ---
@@ -155,6 +186,7 @@ docker run --rm \
 
 ```bash
 docker run --rm -v $(pwd):/bruno usebruno/cli run --env staging --bail
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli run --env staging --bail
 ```
 
 ---
@@ -164,12 +196,15 @@ docker run --rm -v $(pwd):/bruno usebruno/cli run --env staging --bail
 ```bash
 # exact version — safest for production, no surprise updates
 docker run --rm -v $(pwd):/bruno usebruno/cli:3.3.0 run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli:3.3.0 run --env staging
 
 # major.minor — gets patch fixes automatically
 docker run --rm -v $(pwd):/bruno usebruno/cli:3.3 run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli:3.3 run --env staging
 
 # latest — always newest, not recommended for production CI
 docker run --rm -v $(pwd):/bruno usebruno/cli:latest run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli:latest run --env staging
 ```
 
 ---
@@ -179,9 +214,11 @@ docker run --rm -v $(pwd):/bruno usebruno/cli:latest run --env staging
 ```bash
 # alpine (default) — use this for most cases
 docker run --rm -v $(pwd):/bruno usebruno/cli:3.3.0 run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli:3.3.0 run --env staging
 
 # debian — use if you hit SSL, glibc, or native module issues
 docker run --rm -v $(pwd):/bruno usebruno/cli:3.3.0-debian run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli:3.3.0-debian run --env staging
 ```
 
 ---
@@ -192,14 +229,12 @@ docker run --rm -v $(pwd):/bruno usebruno/cli:3.3.0-debian run --env staging
 
 See [Alpine README](./images/alpine/README.md) for:
 - Building the Alpine image
-- When to use Alpine
 - Variant-specific options
 
 ### Debian variant
 
 See [Debian README](./images/debian/README.md) for:
 - Building the Debian image
-- When to use Debian
 - Compatibility notes
 
 ---
@@ -230,6 +265,8 @@ jobs:
           reporter: java-junit
 ```
 
+> To use GHCR instead, replace `usebruno/cli:3.3` with `ghcr.io/usebruno/cli:3.3`.
+
 ### GitLab CI
 
 ```yaml
@@ -241,6 +278,8 @@ api-tests:
     reports:
       junit: results.xml
 ```
+
+> To use GHCR instead, replace `usebruno/cli:3.3` with `ghcr.io/usebruno/cli:3.3`.
 
 ---
 
@@ -257,10 +296,20 @@ All variants include:
 
 ## All version × variant combinations
 
+### Docker Hub
+
 | | Alpine | Debian |
 |---|---|---|
 | `latest` | `usebruno/cli:latest` | `usebruno/cli:debian` |
 | `3` | `usebruno/cli:3` | `usebruno/cli:3-debian` |
 | `3.3` | `usebruno/cli:3.3` | `usebruno/cli:3.3-debian` |
 | `3.3.0` | `usebruno/cli:3.3.0` | `usebruno/cli:3.3.0-debian` |
-| `3.2.0` | `usebruno/cli:3.2.0` | `usebruno/cli:3.2.0-debian` |
+
+### GHCR
+
+| | Alpine | Debian |
+|---|---|---|
+| `latest` | `ghcr.io/usebruno/cli:latest` | `ghcr.io/usebruno/cli:debian` |
+| `3` | `ghcr.io/usebruno/cli:3` | `ghcr.io/usebruno/cli:3-debian` |
+| `3.3` | `ghcr.io/usebruno/cli:3.3` | `ghcr.io/usebruno/cli:3.3-debian` |
+| `3.3.0` | `ghcr.io/usebruno/cli:3.3.0` | `ghcr.io/usebruno/cli:3.3.0-debian` |

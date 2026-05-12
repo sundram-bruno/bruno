@@ -19,9 +19,11 @@ docker build \
 ## Usage
 
 ```bash
-# Run a collection
+# Docker Hub
 docker run --rm -v $(pwd):/bruno usebruno/cli:debian run --env staging
-
-# with pinned version
 docker run --rm -v $(pwd):/bruno usebruno/cli:3.3.0-debian run --env staging
+
+# GHCR
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli:debian run --env staging
+docker run --rm -v $(pwd):/bruno ghcr.io/usebruno/cli:3.3.0-debian run --env staging
 ```
