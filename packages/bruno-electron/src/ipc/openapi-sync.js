@@ -554,6 +554,62 @@ const mergeJsonBody = (userBody, specBody, preserveValues = true) => {
 };
 
 /**
+ * Merge a spec-defined list of {name,value,enabled,...} entries with the user's
+ * entries. Spec defines membership (add new, drop removed). For matched names
+ * the user's `value` and `enabled` win. Duplicate names pair positionally.
+ */
+const mergeFieldListPreserving = (specItems, existingItems, preserveValues = true) => {
+  const spec = specItems || [];
+  if (!preserveValues) return spec;
+  const existing = existingItems || [];
+  const cursorByName = {};
+  return spec.map((specEntry) => {
+    const matches = existing.filter((e) => e.name === specEntry.name);
+    const cursor = cursorByName[specEntry.name] || 0;
+    const picked = matches[cursor];
+    if (!picked) return specEntry;
+    cursorByName[specEntry.name] = cursor + 1;
+    return { ...specEntry, value: picked.value, enabled: picked.enabled };
+  });
+};
+
+/**
+ * Merge auth: same mode -> keep the user's sub-object for that mode (all nested
+ * field values, incl. {{var}} refs). Different mode -> spec wins (mode change is
+ * surfaced as a modification by detection). none/inherit have no fields to keep.
+ */
+const mergeAuth = (userAuth, specAuth, preserveValues = true) => {
+  if (!preserveValues) return specAuth;
+  const userMode = userAuth?.mode || 'none';
+  const specMode = specAuth?.mode || 'none';
+  if (userMode !== specMode) return specAuth;
+  if (specMode === 'none' || specMode === 'inherit') return specAuth;
+  const userSub = userAuth?.[specMode];
+  if (userSub === undefined) return specAuth;
+  return { ...specAuth, mode: specMode, [specMode]: userSub };
+};
+
+/**
+ * Merge a request body: same mode -> field-level merge per mode; different mode
+ * -> spec wins. Raw text modes keep the user's body verbatim.
+ */
+const mergeBody = (userBody, specBody, preserveValues = true) => {
+  if (!preserveValues || !userBody || !specBody) return specBody;
+  const specMode = specBody.mode || 'none';
+  const userMode = userBody.mode || 'none';
+  if (specMode !== userMode) return specBody;
+  if (specMode === 'json') return mergeJsonBody(userBody, specBody, preserveValues);
+  if (specMode === 'formUrlEncoded') {
+    return { ...specBody, formUrlEncoded: mergeFieldListPreserving(specBody.formUrlEncoded, userBody.formUrlEncoded, preserveValues) || [] };
+  }
+  if (specMode === 'multipartForm') {
+    return { ...specBody, multipartForm: mergeFieldListPreserving(specBody.multipartForm, userBody.multipartForm, preserveValues) || [] };
+  }
+  // raw modes: xml / text / sparql / graphql -> keep the user's body
+  return { ...userBody };
+};
+
+/**
  * Merge spec params/headers with existing user values.
  * Matches by name + value to correctly handle enum-expanded params (multiple entries with same name).
  * Only preserves the user's enabled state; values come from the spec.
@@ -1824,6 +1880,9 @@ if (process.env.NODE_ENV === 'test') {
     unmaskJsonInterpolations,
     mergeJsonValues,
     mergeJsonBody,
+    mergeFieldListPreserving,
+    mergeAuth,
+    mergeBody,
     mergeSpecIntoRequest,
     compareRequestFields
   };

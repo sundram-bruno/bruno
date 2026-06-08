@@ -156,3 +156,68 @@ describe('mergeJsonBody', () => {
     expect(merged).toBe(specBody);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 5 smoke: _test exports new helpers
+// ---------------------------------------------------------------------------
+describe('_test exports (Batch B)', () => {
+  it('exports mergeFieldListPreserving as a function', () => {
+    expect(typeof helpers.mergeFieldListPreserving).toBe('function');
+  });
+
+  it('exports mergeAuth as a function', () => {
+    expect(typeof helpers.mergeAuth).toBe('function');
+  });
+
+  it('exports mergeBody as a function', () => {
+    expect(typeof helpers.mergeBody).toBe('function');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 5: mergeFieldListPreserving
+// ---------------------------------------------------------------------------
+describe('mergeFieldListPreserving', () => {
+  it('keeps user value+enabled for matching name', () => {
+    const spec = [{ name: 'q', value: '', enabled: true }];
+    const user = [{ name: 'q', value: 'hello', enabled: false }];
+    const out = helpers.mergeFieldListPreserving(spec, user);
+    expect(out).toEqual([{ name: 'q', value: 'hello', enabled: false }]);
+  });
+
+  it('adds spec entries user lacks', () => {
+    const spec = [{ name: 'q', value: '' }, { name: 'page', value: '1' }];
+    const user = [{ name: 'q', value: 'hi' }];
+    const out = helpers.mergeFieldListPreserving(spec, user);
+    expect(out.map((e) => e.name)).toEqual(['q', 'page']);
+    expect(out[1].value).toBe('1');
+  });
+
+  it('drops user entries not in spec', () => {
+    const spec = [{ name: 'q', value: '' }];
+    const user = [{ name: 'q', value: 'hi' }, { name: 'gone', value: 'x' }];
+    const out = helpers.mergeFieldListPreserving(spec, user);
+    expect(out.map((e) => e.name)).toEqual(['q']);
+  });
+
+  it('pairs duplicate names positionally', () => {
+    const spec = [{ name: 'X', value: '' }, { name: 'X', value: '' }];
+    const user = [{ name: 'X', value: 'a' }, { name: 'X', value: 'b' }];
+    const out = helpers.mergeFieldListPreserving(spec, user);
+    expect(out.map((e) => e.value)).toEqual(['a', 'b']);
+  });
+
+  it('preserves multipart file value (array) by name', () => {
+    const spec = [{ name: 'f', type: 'file', value: [] }];
+    const user = [{ name: 'f', type: 'file', value: ['/tmp/a.png'], enabled: true }];
+    const out = helpers.mergeFieldListPreserving(spec, user);
+    expect(out[0].value).toEqual(['/tmp/a.png']);
+  });
+
+  it('preserveValues=false returns spec entries unchanged', () => {
+    const spec = [{ name: 'q', value: '' }];
+    const user = [{ name: 'q', value: 'hi' }];
+    const out = helpers.mergeFieldListPreserving(spec, user, false);
+    expect(out).toEqual(spec);
+  });
+});
