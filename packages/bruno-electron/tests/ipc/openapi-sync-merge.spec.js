@@ -220,6 +220,13 @@ describe('mergeFieldListPreserving', () => {
     const out = helpers.mergeFieldListPreserving(spec, user, false);
     expect(out).toEqual(spec);
   });
+
+  it('falls back to the spec enabled default when the user entry has no enabled flag', () => {
+    const spec = [{ name: 'q', value: '', enabled: true }];
+    const user = [{ name: 'q', value: 'hi' }];
+    const out = helpers.mergeFieldListPreserving(spec, user);
+    expect(out[0].enabled).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -250,6 +257,13 @@ describe('mergeAuth', () => {
     const spec = { mode: 'oauth2', oauth2: { scope: '' } };
     const out = helpers.mergeAuth(user, spec, false);
     expect(out).toEqual(spec);
+  });
+
+  it('does not alias the user auth sub-object (defensive clone)', () => {
+    const user = { mode: 'oauth2', oauth2: { scope: 'read' } };
+    const spec = { mode: 'oauth2', oauth2: { scope: '' } };
+    const out = helpers.mergeAuth(user, spec);
+    expect(out.oauth2).not.toBe(user.oauth2);
   });
 });
 
@@ -284,5 +298,13 @@ describe('mergeBody', () => {
     const spec = { mode: 'formUrlEncoded', formUrlEncoded: [] };
     const out = helpers.mergeBody(user, spec);
     expect(out).toEqual(spec);
+  });
+
+  it('keeps the user graphql body but does not alias its nested object', () => {
+    const user = { mode: 'graphql', graphql: { query: '{ me {{id}} }', variables: '{}' } };
+    const spec = { mode: 'graphql', graphql: { query: '{ me }', variables: '' } };
+    const out = helpers.mergeBody(user, spec);
+    expect(out.graphql).toEqual(user.graphql);
+    expect(out.graphql).not.toBe(user.graphql);
   });
 });

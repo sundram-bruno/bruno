@@ -569,7 +569,7 @@ const mergeFieldListPreserving = (specItems, existingItems, preserveValues = tru
     const picked = matches[cursor];
     if (!picked) return specEntry;
     cursorByName[specEntry.name] = cursor + 1;
-    return { ...specEntry, value: picked.value, enabled: picked.enabled };
+    return { ...specEntry, value: picked.value, enabled: picked.enabled ?? specEntry.enabled };
   });
 };
 
@@ -586,7 +586,9 @@ const mergeAuth = (userAuth, specAuth, preserveValues = true) => {
   if (specMode === 'none' || specMode === 'inherit') return specAuth;
   const userSub = userAuth?.[specMode];
   if (userSub === undefined) return specAuth;
-  return { ...specAuth, mode: specMode, [specMode]: userSub };
+  // Shallow-clone the user's sub-object so the merged result never aliases the
+  // caller's stored request (auth sub-objects are flat config structs).
+  return { ...specAuth, [specMode]: { ...userSub } };
 };
 
 /**
@@ -600,12 +602,15 @@ const mergeBody = (userBody, specBody, preserveValues = true) => {
   if (specMode !== userMode) return specBody;
   if (specMode === 'json') return mergeJsonBody(userBody, specBody, preserveValues);
   if (specMode === 'formUrlEncoded') {
-    return { ...specBody, formUrlEncoded: mergeFieldListPreserving(specBody.formUrlEncoded, userBody.formUrlEncoded, preserveValues) || [] };
+    return { ...specBody, formUrlEncoded: mergeFieldListPreserving(specBody.formUrlEncoded, userBody.formUrlEncoded, preserveValues) };
   }
   if (specMode === 'multipartForm') {
-    return { ...specBody, multipartForm: mergeFieldListPreserving(specBody.multipartForm, userBody.multipartForm, preserveValues) || [] };
+    return { ...specBody, multipartForm: mergeFieldListPreserving(specBody.multipartForm, userBody.multipartForm, preserveValues) };
   }
-  // raw modes: xml / text / sparql / graphql -> keep the user's body
+  // graphql stores a nested { query, variables } object — clone it so the merged
+  // body never aliases the caller's stored request.
+  if (specMode === 'graphql') return { ...userBody, graphql: { ...userBody.graphql } };
+  // other raw modes (xml / text / sparql) hold a string payload — shallow copy is safe
   return { ...userBody };
 };
 
