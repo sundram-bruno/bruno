@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   IconChevronRight,
@@ -15,7 +15,7 @@ import Help from 'components/Help';
 import EndpointVisualDiff from './EndpointVisualDiff';
 
 // Expandable row - can be used with or without decision buttons
-const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectionPath, newSpec, showDecisions = true, decisionLabels, diffLeftLabel, diffRightLabel, swapDiffSides, collectionUid, actions }) => {
+const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectionPath, newSpec, showDecisions = true, decisionLabels, diffLeftLabel, diffRightLabel, swapDiffSides, collectionUid, actions, preserveValues = true }) => {
   const dispatch = useDispatch();
   const rowKey = endpoint.id || `${endpoint.method}-${endpoint.path}`;
   const isExpanded = useSelector((state) => {
@@ -25,9 +25,15 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
   const [diffData, setDiffData] = useState(null);
   const [error, setError] = useState(null);
 
-  const loadDiffData = useCallback(async () => {
-    if (diffData) return;
+  // Monotonic id so a superseded in-flight fetch (e.g. the user flips the
+  // Preserve toggle mid-request) can't overwrite the latest result.
+  const requestIdRef = useRef(0);
 
+  const loadDiffData = useCallback(async () => {
+    // No internal diffData guard: both callers (the expand effect and handleToggle)
+    // already gate on !diffData. Guarding here would capture a stale diffData from
+    // the render that recreated this callback and silently skip the toggle re-fetch.
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
 
@@ -36,20 +42,39 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
       const result = await ipcRenderer.invoke('renderer:get-endpoint-diff-data', {
         collectionPath,
         endpointId: endpoint.id,
-        newSpec
+        newSpec,
+        preserveValues
       });
 
+      if (requestId !== requestIdRef.current) return; // superseded by a newer fetch
       if (result.error) {
         setError(result.error);
       } else {
         setDiffData(result);
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(formatIpcError(err) || 'Failed to load diff data');
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) setIsLoading(false);
     }
-  }, [collectionPath, endpoint.id, newSpec]);
+  }, [collectionPath, endpoint.id, newSpec, preserveValues]);
+
+  // Re-fetch the preview when the preserve toggle changes — the EXPECTED column
+  // depends on it. Declared BEFORE the load effect so that on a toggle change it
+  // runs first (clearing diffData/isLoading), letting the load effect fire a
+  // single fresh fetch instead of racing a stale one.
+  const didMountPreserve = useRef(false);
+  useEffect(() => {
+    if (!didMountPreserve.current) {
+      didMountPreserve.current = true;
+      return;
+    }
+    requestIdRef.current++; // invalidate any in-flight fetch from the old toggle state
+    setDiffData(null);
+    setError(null);
+    setIsLoading(false);
+  }, [preserveValues]);
 
   // Load diff data when expanded (e.g. restored from Redux state)
   useEffect(() => {
