@@ -88,6 +88,7 @@ const SyncReviewPage = ({
 }) => {
   const dispatch = useDispatch();
   const tabUiState = useSelector((state) => state.openapiSync?.tabUiState?.[collectionUid] || {});
+  const [preserveValues, setPreserveValues] = useState(true);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showSpecDiffModal, setShowSpecDiffModal] = useState(false);
   const [isOpeningSpecDiff, setIsOpeningSpecDiff] = useState(false);
@@ -210,7 +211,8 @@ const SyncReviewPage = ({
       newToCollection: filteredAddedEndpoints,
       specUpdates: filteredSpecChanges,
       resolvedConflicts: specUpdatedEndpoints.filter((ep) => ep.conflict && decisions[ep.id] === 'accept-incoming'),
-      localChangesToReset: localUpdatedEndpoints.filter((ep) => decisions[ep.id] === 'accept-incoming')
+      localChangesToReset: localUpdatedEndpoints.filter((ep) => decisions[ep.id] === 'accept-incoming'),
+      preserveValues
     });
   };
 
@@ -238,6 +240,14 @@ const SyncReviewPage = ({
             </div>
             {(specDrift?.unifiedDiff || decidableEndpoints.length > 0) && (
               <div className="bulk-actions">
+                <button
+                  className={`bulk-btn ${preserveValues ? 'active' : ''}`}
+                  onClick={() => setPreserveValues((v) => !v)}
+                  title="When on, your edited values (body, params, headers, auth, {{vars}}) are kept; only fields the spec adds or removes change. When off, spec values overwrite yours."
+                >
+                  <IconCheck size={12} /> Preserve values
+                  <IconInfoCircle size={12} style={{ marginLeft: 4, opacity: 0.7 }} />
+                </button>
                 {specDrift?.unifiedDiff && (
                   <button
                     className="bulk-btn"
@@ -329,6 +339,7 @@ const SyncReviewPage = ({
                       showDecisions={true}
                       decisionLabels={{ keep: 'Keep Current', accept: 'Update' }}
                       collectionUid={collectionUid}
+                      preserveValues={preserveValues}
                     />
                   )}
                 />
@@ -353,6 +364,7 @@ const SyncReviewPage = ({
                       showDecisions={true}
                       decisionLabels={{ keep: 'Skip', accept: 'Add' }}
                       collectionUid={collectionUid}
+                      preserveValues={preserveValues}
                     />
                   )}
                 />
@@ -377,6 +389,7 @@ const SyncReviewPage = ({
                       showDecisions={true}
                       decisionLabels={{ keep: 'Keep', accept: 'Delete' }}
                       collectionUid={collectionUid}
+                      preserveValues={preserveValues}
                     />
                   )}
                 />
