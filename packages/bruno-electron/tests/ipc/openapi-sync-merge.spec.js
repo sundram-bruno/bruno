@@ -73,6 +73,50 @@ describe('maskJsonInterpolations', () => {
     expect(() => JSON.parse(masked)).not.toThrow();
     expect(vars).toEqual(['{{userId}}']);
   });
+
+  // Round-trip helper: mask -> parse -> stringify -> unmask, then assert the
+  // result is still valid once vars are stubbed out (catches eaten delimiters).
+  const roundTrip = (src) => {
+    const { masked, vars } = helpers.maskJsonInterpolations(src);
+    const restored = helpers.unmaskJsonInterpolations(JSON.stringify(JSON.parse(masked), null, 2), vars);
+    return restored;
+  };
+  const isValidWithVarsStubbed = (json) => {
+    try {
+      JSON.parse(json.replace(/\{\{[^}]+\}\}/g, '1')); return true;
+    } catch (e) { return false; }
+  };
+
+  it('keeps the closing quote when a var is at the END of a string value', () => {
+    const out = roundTrip('{"auth": "Bearer {{token}}"}');
+    expect(out).toContain('"Bearer {{token}}"');
+    expect(isValidWithVarsStubbed(out)).toBe(true);
+  });
+
+  it('keeps quotes when a var is the ENTIRE string value', () => {
+    const out = roundTrip('{"tok": "{{token}}"}');
+    expect(out).toContain('"{{token}}"');
+    expect(isValidWithVarsStubbed(out)).toBe(true);
+  });
+
+  it('keeps a bare-value var unquoted', () => {
+    const out = roundTrip('{"id": {{userId}}}');
+    expect(out).toMatch(/"id":\s*{{userId}}/);
+    expect(isValidWithVarsStubbed(out)).toBe(true);
+  });
+
+  it('preserves a var used as an object key', () => {
+    const out = roundTrip('{"{{dynKey}}": "v"}');
+    expect(out).toContain('"{{dynKey}}"');
+    expect(isValidWithVarsStubbed(out)).toBe(true);
+  });
+
+  it('does not corrupt a literal that resembles an old sentinel', () => {
+    const out = roundTrip('{"msg": "__BRUNO_VAR_0__ literal", "id": {{userId}}}');
+    expect(out).toContain('__BRUNO_VAR_0__ literal');
+    expect(out).toContain('{{userId}}');
+    expect(isValidWithVarsStubbed(out)).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -138,8 +182,10 @@ describe('mergeJsonBody', () => {
     const specBody = { mode: 'json', json: '{"id": 0, "tok": "", "extra": 1}' };
     const merged = helpers.mergeJsonBody(userBody, specBody, true);
     expect(merged.json).toContain('{{userId}}');
-    expect(merged.json).toContain('Bearer {{t}}');
+    expect(merged.json).toContain('"Bearer {{t}}"'); // quotes intact around the in-string var
     expect(merged.json).toContain('extra');
+    // result must stay structurally valid JSON once vars are stubbed
+    expect(() => JSON.parse(merged.json.replace(/\{\{[^}]+\}\}/g, '1'))).not.toThrow();
   });
 
   it('unparseable user json falls back verbatim', () => {
@@ -265,6 +311,13 @@ describe('mergeAuth', () => {
     const out = helpers.mergeAuth(user, spec);
     expect(out.oauth2).not.toBe(user.oauth2);
   });
+
+  it('falls back to spec when the user sub-object is null (not just undefined)', () => {
+    const user = { mode: 'oauth2', oauth2: null };
+    const spec = { mode: 'oauth2', oauth2: { accessTokenUrl: 'https://x', scope: 'read' } };
+    const out = helpers.mergeAuth(user, spec);
+    expect(out).toEqual(spec);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -306,6 +359,13 @@ describe('mergeBody', () => {
     const out = helpers.mergeBody(user, spec);
     expect(out.graphql).toEqual(user.graphql);
     expect(out.graphql).not.toBe(user.graphql);
+  });
+
+  it('falls back to the spec graphql body when the user has none', () => {
+    const user = { mode: 'graphql' }; // no graphql sub-object
+    const spec = { mode: 'graphql', graphql: { query: '{ me }', variables: '' } };
+    const out = helpers.mergeBody(user, spec);
+    expect(out.graphql).toEqual(spec.graphql);
   });
 });
 

@@ -437,10 +437,12 @@ const cleanupSpecFilesForCollection = (collectionPath) => {
  * Replace {{var}} tokens in a JSON string with placeholder strings so the
  * result can be passed to JSON.parse without syntax errors.
  *
- * Tokens that appear inside a JSON string value are replaced with an
- * in-string placeholder (no extra quotes added).  Tokens that appear as a
- * bare JSON value (e.g. a number or boolean position) are wrapped in quotes
- * so JSON.parse accepts them.
+ * A token is emitted with a position-tagged sentinel so unmasking is
+ * unambiguous and never disturbs surrounding JSON syntax:
+ *   - inside a string value -> bare  `__<prefix>_S_<idx>__` (stays in the string)
+ *   - as a bare JSON value   -> quoted `"__<prefix>_V_<idx>__"` (valid JSON value)
+ * The S/V tag lets unmask strip exactly the quotes it added for V tokens while
+ * leaving the surrounding string delimiters of S tokens intact.
  *
  * Returns { masked, vars } where vars is the ordered list of original tokens.
  */
@@ -470,7 +472,7 @@ const maskJsonInterpolations = (str, prefix = 'BRUNO_VAR') => {
         const token = str.slice(i, end + 2);
         const idx = vars.length;
         vars.push(token);
-        out += inString ? `__${prefix}_${idx}__` : `"__${prefix}_${idx}__"`;
+        out += inString ? `__${prefix}_S_${idx}__` : `"__${prefix}_V_${idx}__"`;
         i = end + 2;
         continue;
       }
@@ -484,10 +486,17 @@ const maskJsonInterpolations = (str, prefix = 'BRUNO_VAR') => {
 /**
  * Replace placeholders injected by maskJsonInterpolations back with the
  * original {{var}} tokens.
+ *
+ * Value-position (V) sentinels are matched WITH the quotes mask added and
+ * restored to a bare {{var}}. In-string (S) sentinels are matched bare so the
+ * string's own delimiters are left untouched. The S/V tag prevents the unmask
+ * from ever consuming a real JSON string quote.
  */
 const unmaskJsonInterpolations = (str, vars, prefix = 'BRUNO_VAR') => {
-  const re = new RegExp(`"?__${prefix}_(\\d+)__"?`, 'g');
-  return str.replace(re, (m, n) => (vars[Number(n)] !== undefined ? vars[Number(n)] : m));
+  const restore = (n, m) => (vars[Number(n)] !== undefined ? vars[Number(n)] : m);
+  return str
+    .replace(new RegExp(`"__${prefix}_V_(\\d+)__"`, 'g'), (m, n) => restore(n, m))
+    .replace(new RegExp(`__${prefix}_S_(\\d+)__`, 'g'), (m, n) => restore(n, m));
 };
 
 // ---------------------------------------------------------------------------
@@ -585,7 +594,7 @@ const mergeAuth = (userAuth, specAuth, preserveValues = true) => {
   if (userMode !== specMode) return specAuth;
   if (specMode === 'none' || specMode === 'inherit') return specAuth;
   const userSub = userAuth?.[specMode];
-  if (userSub === undefined) return specAuth;
+  if (userSub == null) return specAuth; // null or undefined -> nothing to preserve, keep spec
   // Shallow-clone the user's sub-object so the merged result never aliases the
   // caller's stored request (auth sub-objects are flat config structs).
   return { ...specAuth, [specMode]: { ...userSub } };
@@ -607,9 +616,10 @@ const mergeBody = (userBody, specBody, preserveValues = true) => {
   if (specMode === 'multipartForm') {
     return { ...specBody, multipartForm: mergeFieldListPreserving(specBody.multipartForm, userBody.multipartForm, preserveValues) };
   }
-  // graphql stores a nested { query, variables } object — clone it so the merged
-  // body never aliases the caller's stored request.
-  if (specMode === 'graphql') return { ...userBody, graphql: { ...userBody.graphql } };
+  // graphql stores a nested { query, variables } object — keep the user's, but
+  // fall back to the spec's when the user body has none, and clone so the merged
+  // result never aliases the caller's stored request.
+  if (specMode === 'graphql') return { ...userBody, graphql: { ...(userBody.graphql || specBody.graphql) } };
   // other raw modes (xml / text / sparql) hold a string payload — shallow copy is safe
   return { ...userBody };
 };

@@ -60,15 +60,10 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
     }
   }, [collectionPath, endpoint.id, newSpec, preserveValues]);
 
-  // Load diff data when expanded (e.g. restored from Redux state)
-  useEffect(() => {
-    if (isExpanded && !diffData && !isLoading && !error) {
-      loadDiffData();
-    }
-  }, [isExpanded, diffData, isLoading, loadDiffData, error]);
-
   // Re-fetch the preview when the preserve toggle changes — the EXPECTED column
-  // depends on it. Clearing diffData lets the load effect run again.
+  // depends on it. Declared BEFORE the load effect so that on a toggle change it
+  // runs first (clearing diffData/isLoading), letting the load effect fire a
+  // single fresh fetch instead of racing a stale one.
   const didMountPreserve = useRef(false);
   useEffect(() => {
     if (!didMountPreserve.current) {
@@ -80,6 +75,13 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
     setError(null);
     setIsLoading(false);
   }, [preserveValues]);
+
+  // Load diff data when expanded (e.g. restored from Redux state)
+  useEffect(() => {
+    if (isExpanded && !diffData && !isLoading && !error) {
+      loadDiffData();
+    }
+  }, [isExpanded, diffData, isLoading, loadDiffData, error]);
 
   const handleToggle = () => {
     const willExpand = !isExpanded;
