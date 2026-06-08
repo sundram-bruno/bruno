@@ -221,3 +221,68 @@ describe('mergeFieldListPreserving', () => {
     expect(out).toEqual(spec);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 6: mergeAuth
+// ---------------------------------------------------------------------------
+describe('mergeAuth', () => {
+  it('preserves user auth values when mode matches', () => {
+    const user = { mode: 'oauth2', oauth2: { accessTokenUrl: '{{url}}', scope: 'read' } };
+    const spec = { mode: 'oauth2', oauth2: { accessTokenUrl: 'https://x', scope: '' } };
+    const out = helpers.mergeAuth(user, spec);
+    expect(out).toEqual({ mode: 'oauth2', oauth2: { accessTokenUrl: '{{url}}', scope: 'read' } });
+  });
+
+  it('takes spec auth when mode differs', () => {
+    const user = { mode: 'apikey', apikey: { key: 'X' } };
+    const spec = { mode: 'oauth2', oauth2: { scope: 'read' } };
+    const out = helpers.mergeAuth(user, spec);
+    expect(out).toEqual(spec);
+  });
+
+  it('takes spec auth for none/inherit', () => {
+    const out = helpers.mergeAuth({ mode: 'inherit' }, { mode: 'inherit' }, true);
+    expect(out).toEqual({ mode: 'inherit' });
+  });
+
+  it('preserveValues=false takes spec', () => {
+    const user = { mode: 'oauth2', oauth2: { scope: 'read' } };
+    const spec = { mode: 'oauth2', oauth2: { scope: '' } };
+    const out = helpers.mergeAuth(user, spec, false);
+    expect(out).toEqual(spec);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 6: mergeBody
+// ---------------------------------------------------------------------------
+describe('mergeBody', () => {
+  it('dispatches json bodies to field-level merge', () => {
+    const user = { mode: 'json', json: '{"id":10}' };
+    const spec = { mode: 'json', json: '{"id":0,"name":""}' };
+    const out = helpers.mergeBody(user, spec);
+    expect(JSON.parse(out.json)).toEqual({ id: 10, name: '' });
+  });
+
+  it('merges formUrlEncoded by name', () => {
+    const user = { mode: 'formUrlEncoded', formUrlEncoded: [{ name: 'a', value: 'mine' }] };
+    const spec = { mode: 'formUrlEncoded', formUrlEncoded: [{ name: 'a', value: '' }, { name: 'b', value: '' }] };
+    const out = helpers.mergeBody(user, spec);
+    expect(out.formUrlEncoded.find((e) => e.name === 'a').value).toBe('mine');
+    expect(out.formUrlEncoded.map((e) => e.name)).toEqual(['a', 'b']);
+  });
+
+  it('keeps user raw body verbatim for matching text/xml modes', () => {
+    const user = { mode: 'xml', xml: '<a>{{v}}</a>' };
+    const spec = { mode: 'xml', xml: '<a></a>' };
+    const out = helpers.mergeBody(user, spec);
+    expect(out).toEqual(user);
+  });
+
+  it('takes spec body when body mode differs', () => {
+    const user = { mode: 'json', json: '{"id":10}' };
+    const spec = { mode: 'formUrlEncoded', formUrlEncoded: [] };
+    const out = helpers.mergeBody(user, spec);
+    expect(out).toEqual(spec);
+  });
+});
