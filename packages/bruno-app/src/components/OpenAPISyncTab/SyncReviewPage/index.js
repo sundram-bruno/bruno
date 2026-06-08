@@ -241,6 +241,7 @@ const SyncReviewPage = ({
             {(specDrift?.unifiedDiff || decidableEndpoints.length > 0) && (
               <div className="bulk-actions">
                 <button
+                  data-testid="preserve-values-toggle"
                   className={`bulk-btn ${preserveValues ? 'active' : ''}`}
                   onClick={() => setPreserveValues((v) => !v)}
                   aria-pressed={preserveValues}
