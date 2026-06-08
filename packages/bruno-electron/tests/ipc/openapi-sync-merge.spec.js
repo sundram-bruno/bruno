@@ -66,6 +66,13 @@ describe('maskJsonInterpolations', () => {
     expect(roundTripped).toContain('Bearer {{token}}');
     expect(roundTripped).toMatch(/"id":\s*{{userId}}/);
   });
+
+  it('handles a string value ending with a backslash (escaped quote disambiguation)', () => {
+    const src = '{"path": "C:\\\\", "id": {{userId}}}';
+    const { masked, vars } = helpers.maskJsonInterpolations(src);
+    expect(() => JSON.parse(masked)).not.toThrow();
+    expect(vars).toEqual(['{{userId}}']);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -104,6 +111,10 @@ describe('mergeJsonValues', () => {
     expect(helpers.mergeJsonValues({ items: [] }, { items: [{ id: 0 }] }, true)).toEqual({
       items: [{ id: 0 }]
     });
+  });
+
+  it('keeps a user array of primitives as-is against a single-element template', () => {
+    expect(helpers.mergeJsonValues({ tags: [1, 2, 3] }, { tags: [0] }, true)).toEqual({ tags: [1, 2, 3] });
   });
 
   it('preserveValues=false takes spec', () => {

@@ -451,8 +451,15 @@ const maskJsonInterpolations = (str, prefix = 'BRUNO_VAR') => {
   let i = 0;
   while (i < str.length) {
     const ch = str[i];
-    if (ch === '"' && str[i - 1] !== '\\') {
-      inString = !inString;
+    if (ch === '"') {
+      // Count preceding backslashes: an even count means this quote is not
+      // escaped (handles string values ending in a literal backslash, e.g. "C:\\").
+      let backslashes = 0;
+      let j = i - 1;
+      while (j >= 0 && str[j] === '\\') {
+        backslashes++; j--;
+      }
+      if (backslashes % 2 === 0) inString = !inString;
       out += ch;
       i++;
       continue;
@@ -487,6 +494,7 @@ const unmaskJsonInterpolations = (str, vars, prefix = 'BRUNO_VAR') => {
 // JSON value merge helpers
 // ---------------------------------------------------------------------------
 
+/** Returns true if v is a plain (non-null, non-array) object. */
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
 /**
@@ -540,6 +548,7 @@ const mergeJsonBody = (userBody, specBody, preserveValues = true) => {
     json = unmaskJsonInterpolations(json, s.vars, 'BRU_S');
     return { ...specBody, mode: 'json', json };
   } catch (e) {
+    console.warn('[openapi-sync] mergeJsonBody fallback to verbatim user body:', e.message);
     return { ...userBody };
   }
 };
@@ -1806,6 +1815,7 @@ const registerOpenAPISyncIpc = (mainWindow) => {
 
 module.exports = registerOpenAPISyncIpc;
 module.exports.saveSpecAndUpdateMetadata = saveSpecAndUpdateMetadata;
+module.exports.cleanupSpecFilesForCollection = cleanupSpecFilesForCollection;
 
 /* istanbul ignore next */
 if (process.env.NODE_ENV === 'test') {
@@ -1818,4 +1828,3 @@ if (process.env.NODE_ENV === 'test') {
     compareRequestFields
   };
 }
-module.exports.cleanupSpecFilesForCollection = cleanupSpecFilesForCollection;
