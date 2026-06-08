@@ -243,6 +243,7 @@ const SyncReviewPage = ({
                 <button
                   className={`bulk-btn ${preserveValues ? 'active' : ''}`}
                   onClick={() => setPreserveValues((v) => !v)}
+                  aria-pressed={preserveValues}
                   title="When on, your edited values (body, params, headers, auth, {{vars}}) are kept; only fields the spec adds or removes change. When off, spec values overwrite yours."
                 >
                   <IconCheck size={12} /> Preserve values

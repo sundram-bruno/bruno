@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   IconChevronRight,
@@ -26,8 +26,9 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
   const [error, setError] = useState(null);
 
   const loadDiffData = useCallback(async () => {
-    if (diffData) return;
-
+    // No internal diffData guard: both callers (the expand effect and handleToggle)
+    // already gate on !diffData. Guarding here would capture a stale diffData from
+    // the render that recreated this callback and silently skip the toggle re-fetch.
     setIsLoading(true);
     setError(null);
 
@@ -61,7 +62,7 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
 
   // Re-fetch the preview when the preserve toggle changes — the EXPECTED column
   // depends on it. Clearing diffData lets the load effect run again.
-  const didMountPreserve = React.useRef(false);
+  const didMountPreserve = useRef(false);
   useEffect(() => {
     if (!didMountPreserve.current) {
       didMountPreserve.current = true;
