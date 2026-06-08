@@ -15,7 +15,7 @@ import Help from 'components/Help';
 import EndpointVisualDiff from './EndpointVisualDiff';
 
 // Expandable row - can be used with or without decision buttons
-const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectionPath, newSpec, showDecisions = true, decisionLabels, diffLeftLabel, diffRightLabel, swapDiffSides, collectionUid, actions }) => {
+const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectionPath, newSpec, showDecisions = true, decisionLabels, diffLeftLabel, diffRightLabel, swapDiffSides, collectionUid, actions, preserveValues = true }) => {
   const dispatch = useDispatch();
   const rowKey = endpoint.id || `${endpoint.method}-${endpoint.path}`;
   const isExpanded = useSelector((state) => {
@@ -36,7 +36,8 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
       const result = await ipcRenderer.invoke('renderer:get-endpoint-diff-data', {
         collectionPath,
         endpointId: endpoint.id,
-        newSpec
+        newSpec,
+        preserveValues
       });
 
       if (result.error) {
@@ -49,7 +50,7 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
     } finally {
       setIsLoading(false);
     }
-  }, [collectionPath, endpoint.id, newSpec]);
+  }, [collectionPath, endpoint.id, newSpec, preserveValues]);
 
   // Load diff data when expanded (e.g. restored from Redux state)
   useEffect(() => {
@@ -57,6 +58,18 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
       loadDiffData();
     }
   }, [isExpanded, diffData, isLoading, loadDiffData, error]);
+
+  // Re-fetch the preview when the preserve toggle changes — the EXPECTED column
+  // depends on it. Clearing diffData lets the load effect run again.
+  const didMountPreserve = React.useRef(false);
+  useEffect(() => {
+    if (!didMountPreserve.current) {
+      didMountPreserve.current = true;
+      return;
+    }
+    setDiffData(null);
+    setError(null);
+  }, [preserveValues]);
 
   const handleToggle = () => {
     const willExpand = !isExpanded;
