@@ -424,3 +424,24 @@ describe('mergeSpecIntoRequest (reset mode unchanged)', () => {
     expect(out.request.assertions).toEqual([{ k: 'a' }]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 8: compareRequestFields auth comparison
+// ---------------------------------------------------------------------------
+describe('compareRequestFields auth comparison', () => {
+  const base = { params: [], headers: [], body: { mode: 'none' } };
+
+  it('same auth mode with different config values -> hasDiff === false', () => {
+    const spec = { ...base, auth: { mode: 'oauth2', oauth2: { accessTokenUrl: 'https://x', scope: '' } } };
+    const actual = { ...base, auth: { mode: 'oauth2', oauth2: { accessTokenUrl: '{{url}}', scope: 'read' } } };
+    expect(helpers.compareRequestFields(spec, actual).hasDiff).toBe(false);
+  });
+
+  it('different auth modes -> hasDiff true and changes mention "auth"', () => {
+    const spec = { ...base, auth: { mode: 'oauth2', oauth2: {} } };
+    const actual = { ...base, auth: { mode: 'apikey', apikey: {} } };
+    const result = helpers.compareRequestFields(spec, actual);
+    expect(result.hasDiff).toBe(true);
+    expect(result.changes.join(',')).toContain('auth');
+  });
+});

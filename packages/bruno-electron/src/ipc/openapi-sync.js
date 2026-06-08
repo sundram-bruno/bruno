@@ -763,29 +763,6 @@ const compareRequestFields = (specRequest, actualRequest) => {
   const actualAuthMode = actualRequest.auth?.mode || 'none';
   const authDiff = specAuthMode !== actualAuthMode;
 
-  // Check auth config differences when auth modes match
-  let authConfigDiff = false;
-  if (!authDiff && specAuthMode !== 'none' && specAuthMode !== 'inherit') {
-    if (specAuthMode === 'apikey') {
-      const specApikey = specRequest.auth?.apikey || {};
-      const actualApikey = actualRequest.auth?.apikey || {};
-      authConfigDiff = specApikey.key !== actualApikey.key || specApikey.placement !== actualApikey.placement;
-    } else if (specAuthMode === 'oauth2') {
-      const specOauth2 = specRequest.auth?.oauth2 || {};
-      const actualOauth2 = actualRequest.auth?.oauth2 || {};
-      const grantType = specOauth2.grantType || actualOauth2.grantType;
-      const commonFields = ['grantType', 'scope'];
-      const grantTypeFields = {
-        authorization_code: [...commonFields, 'authorizationUrl', 'accessTokenUrl'],
-        implicit: [...commonFields, 'authorizationUrl'],
-        password: [...commonFields, 'accessTokenUrl'],
-        client_credentials: [...commonFields, 'accessTokenUrl']
-      };
-      const fields = grantTypeFields[grantType] || commonFields;
-      authConfigDiff = fields.some((field) => specOauth2[field] !== actualOauth2[field]);
-    }
-  }
-
   // Check form field names when body modes match and mode is form-based
   let formFieldsDiff = false;
   let specFormFieldNames = [];
@@ -819,7 +796,7 @@ const compareRequestFields = (specRequest, actualRequest) => {
     }
   }
 
-  const hasDiff = paramsDiff || headersDiff || bodyDiff || authDiff || authConfigDiff || formFieldsDiff || jsonBodyDiff;
+  const hasDiff = paramsDiff || headersDiff || bodyDiff || authDiff || formFieldsDiff || jsonBodyDiff;
 
   const changes = [];
   if (hasDiff) {
@@ -837,7 +814,6 @@ const compareRequestFields = (specRequest, actualRequest) => {
     }
     if (bodyDiff) changes.push(`body: ${actualBodyMode}`);
     if (authDiff) changes.push(`auth: ${actualAuthMode}`);
-    if (authConfigDiff) changes.push('auth config');
     if (formFieldsDiff) {
       const addedFields = actualFormFieldNames.filter((f) => !specFormFieldNames.includes(f));
       const removedFields = specFormFieldNames.filter((f) => !actualFormFieldNames.includes(f));
