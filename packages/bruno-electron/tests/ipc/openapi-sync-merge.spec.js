@@ -318,6 +318,31 @@ describe('mergeAuth', () => {
     const out = helpers.mergeAuth(user, spec);
     expect(out).toEqual(spec);
   });
+
+  it('ON: adds spec-introduced auth fields, keeps user values + user-only fields', () => {
+    const user = { mode: 'oauth2', oauth2: { scope: 'read:pet', callbackUrl: '{{cb}}', clientSecret: '{{secret}}' } };
+    const spec = { mode: 'oauth2', oauth2: { scope: 'read:pets', authorizationUrl: 'https://x/v1', refreshTokenUrl: '{{rt}}' } };
+    const out = helpers.mergeAuth(user, spec).oauth2;
+    expect(out.scope).toBe('read:pet'); // user value wins on shared field
+    expect(out.authorizationUrl).toBe('https://x/v1'); // spec-added field appears
+    expect(out.refreshTokenUrl).toBe('{{rt}}'); // spec-added field appears
+    expect(out.callbackUrl).toBe('{{cb}}'); // user-only field kept (not deleted)
+    expect(out.clientSecret).toBe('{{secret}}'); // user credential kept
+  });
+
+  it('ON: does NOT delete a user field the spec dropped (no-delete safety)', () => {
+    const user = { mode: 'oauth2', oauth2: { scope: 'read', callbackUrl: '{{cb}}' } };
+    const spec = { mode: 'oauth2', oauth2: { scope: 'read' } }; // spec has no callbackUrl
+    expect(helpers.mergeAuth(user, spec).oauth2.callbackUrl).toBe('{{cb}}');
+  });
+
+  it('OFF: full spec overwrite drops user-only fields (removals applied)', () => {
+    const user = { mode: 'oauth2', oauth2: { scope: 'read:pet', callbackUrl: '{{cb}}', clientSecret: '{{secret}}' } };
+    const spec = { mode: 'oauth2', oauth2: { scope: 'read:pets', authorizationUrl: 'https://x/v1' } };
+    const out = helpers.mergeAuth(user, spec, false).oauth2;
+    expect(out).toEqual({ scope: 'read:pets', authorizationUrl: 'https://x/v1' });
+    expect(out.callbackUrl).toBeUndefined(); // removed under overwrite
+  });
 });
 
 // ---------------------------------------------------------------------------

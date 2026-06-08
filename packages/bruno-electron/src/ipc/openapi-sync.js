@@ -583,9 +583,18 @@ const mergeFieldListPreserving = (specItems, existingItems, preserveValues = tru
 };
 
 /**
- * Merge auth: same mode -> keep the user's sub-object for that mode (all nested
- * field values, incl. {{var}} refs). Different mode -> spec wins (mode change is
- * surfaced as a modification by detection). none/inherit have no fields to keep.
+ * Merge auth field-by-field for the active mode, mirroring the JSON-body merge:
+ *   - same mode -> additive merge: take the spec's field set as the base, then
+ *     let the user's values win on shared fields AND keep the user's own fields
+ *     (so spec-introduced auth fields appear, user values + credentials survive).
+ *   - different mode -> spec wins (the mode change is surfaced by detection).
+ *   - none/inherit -> nothing to preserve, keep spec.
+ *
+ * Deliberate deviation from the body merge: we do NOT delete user fields that the
+ * spec lacks. The OpenAPI securityScheme is sparse and does not express user
+ * credentials (clientId/secret/token/username/password/PKCE/etc.), so removing
+ * "spec-dropped" auth fields would wipe real user data. Field removals therefore
+ * only take effect when preserve is OFF (full spec overwrite).
  */
 const mergeAuth = (userAuth, specAuth, preserveValues = true) => {
   if (!preserveValues) return specAuth;
@@ -595,9 +604,10 @@ const mergeAuth = (userAuth, specAuth, preserveValues = true) => {
   if (specMode === 'none' || specMode === 'inherit') return specAuth;
   const userSub = userAuth?.[specMode];
   if (userSub == null) return specAuth; // null or undefined -> nothing to preserve, keep spec
-  // Shallow-clone the user's sub-object so the merged result never aliases the
-  // caller's stored request (auth sub-objects are flat config structs).
-  return { ...specAuth, [specMode]: { ...userSub } };
+  const specSub = specAuth?.[specMode] || {};
+  // spec fields as base + user fields/values on top (user wins on overlap).
+  // New object so the merged result never aliases the caller's stored request.
+  return { ...specAuth, [specMode]: { ...specSub, ...userSub } };
 };
 
 /**
