@@ -25,10 +25,15 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
   const [diffData, setDiffData] = useState(null);
   const [error, setError] = useState(null);
 
+  // Monotonic id so a superseded in-flight fetch (e.g. the user flips the
+  // Preserve toggle mid-request) can't overwrite the latest result.
+  const requestIdRef = useRef(0);
+
   const loadDiffData = useCallback(async () => {
     // No internal diffData guard: both callers (the expand effect and handleToggle)
     // already gate on !diffData. Guarding here would capture a stale diffData from
     // the render that recreated this callback and silently skip the toggle re-fetch.
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
 
@@ -41,15 +46,17 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
         preserveValues
       });
 
+      if (requestId !== requestIdRef.current) return; // superseded by a newer fetch
       if (result.error) {
         setError(result.error);
       } else {
         setDiffData(result);
       }
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(formatIpcError(err) || 'Failed to load diff data');
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) setIsLoading(false);
     }
   }, [collectionPath, endpoint.id, newSpec, preserveValues]);
 
@@ -68,8 +75,10 @@ const ExpandableEndpointRow = ({ endpoint, decision, onDecisionChange, collectio
       didMountPreserve.current = true;
       return;
     }
+    requestIdRef.current++; // invalidate any in-flight fetch from the old toggle state
     setDiffData(null);
     setError(null);
+    setIsLoading(false);
   }, [preserveValues]);
 
   const handleToggle = () => {
