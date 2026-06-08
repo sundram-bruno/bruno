@@ -439,13 +439,19 @@ const cleanupSpecFilesForCollection = (collectionPath) => {
  *
  * A token is emitted with a position-tagged sentinel so unmasking is
  * unambiguous and never disturbs surrounding JSON syntax:
- *   - inside a string value -> bare  `__<prefix>_S_<idx>__` (stays in the string)
- *   - as a bare JSON value   -> quoted `"__<prefix>_V_<idx>__"` (valid JSON value)
+ *   - inside a string value -> bare   `<prefix>_S_<idx>` (stays in the string)
+ *   - as a bare JSON value   -> quoted `"<prefix>_V_<idx>"` (valid JSON value)
  * The S/V tag lets unmask strip exactly the quotes it added for V tokens while
- * leaving the surrounding string delimiters of S tokens intact.
+ * leaving the surrounding string delimiters of S tokens intact. The sentinel is
+ * wrapped in a Unicode private-use delimiter (U+E000) that cannot realistically
+ * appear in a request body, so it never collides with real text and survives
+ * JSON.parse/stringify unescaped. Sentinels are transient — they only exist
+ * between mask and unmask, never on disk.
  *
  * Returns { masked, vars } where vars is the ordered list of original tokens.
  */
+// U+E000 (private use area) delimiter — effectively un-typeable in a real body.
+const SENTINEL = String.fromCharCode(0xe000);
 const maskJsonInterpolations = (str, prefix = 'BRUNO_VAR') => {
   const vars = [];
   let out = '';
@@ -472,7 +478,9 @@ const maskJsonInterpolations = (str, prefix = 'BRUNO_VAR') => {
         const token = str.slice(i, end + 2);
         const idx = vars.length;
         vars.push(token);
-        out += inString ? `__${prefix}_S_${idx}__` : `"__${prefix}_V_${idx}__"`;
+        out += inString
+          ? `${SENTINEL}${prefix}_S_${idx}${SENTINEL}`
+          : `"${SENTINEL}${prefix}_V_${idx}${SENTINEL}"`;
         i = end + 2;
         continue;
       }
@@ -495,8 +503,8 @@ const maskJsonInterpolations = (str, prefix = 'BRUNO_VAR') => {
 const unmaskJsonInterpolations = (str, vars, prefix = 'BRUNO_VAR') => {
   const restore = (n, m) => (vars[Number(n)] !== undefined ? vars[Number(n)] : m);
   return str
-    .replace(new RegExp(`"__${prefix}_V_(\\d+)__"`, 'g'), (m, n) => restore(n, m))
-    .replace(new RegExp(`__${prefix}_S_(\\d+)__`, 'g'), (m, n) => restore(n, m));
+    .replace(new RegExp(`"${SENTINEL}${prefix}_V_(\\d+)${SENTINEL}"`, 'g'), (m, n) => restore(n, m))
+    .replace(new RegExp(`${SENTINEL}${prefix}_S_(\\d+)${SENTINEL}`, 'g'), (m, n) => restore(n, m));
 };
 
 // ---------------------------------------------------------------------------

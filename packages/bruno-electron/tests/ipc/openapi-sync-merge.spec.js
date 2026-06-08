@@ -111,9 +111,11 @@ describe('maskJsonInterpolations', () => {
     expect(isValidWithVarsStubbed(out)).toBe(true);
   });
 
-  it('does not corrupt a literal that resembles an old sentinel', () => {
-    const out = roundTrip('{"msg": "__BRUNO_VAR_0__ literal", "id": {{userId}}}');
-    expect(out).toContain('__BRUNO_VAR_0__ literal');
+  it('does not corrupt a body literal that resembles the internal sentinel', () => {
+    // Both the legacy shape and the current tagged shape must pass through untouched —
+    // the real sentinel is wrapped in a U+E000 delimiter the user cannot type.
+    const out = roundTrip('{"msg": "__BRUNO_VAR_0__ and __BRUNO_VAR_S_0__ literal", "id": {{userId}}}');
+    expect(out).toContain('__BRUNO_VAR_0__ and __BRUNO_VAR_S_0__ literal');
     expect(out).toContain('{{userId}}');
     expect(isValidWithVarsStubbed(out)).toBe(true);
   });
