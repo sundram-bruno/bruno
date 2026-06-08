@@ -434,6 +434,117 @@ const cleanupSpecFilesForCollection = (collectionPath) => {
 };
 
 /**
+ * Replace {{var}} tokens in a JSON string with placeholder strings so the
+ * result can be passed to JSON.parse without syntax errors.
+ *
+ * Tokens that appear inside a JSON string value are replaced with an
+ * in-string placeholder (no extra quotes added).  Tokens that appear as a
+ * bare JSON value (e.g. a number or boolean position) are wrapped in quotes
+ * so JSON.parse accepts them.
+ *
+ * Returns { masked, vars } where vars is the ordered list of original tokens.
+ */
+const maskJsonInterpolations = (str, prefix = 'BRUNO_VAR') => {
+  const vars = [];
+  let out = '';
+  let inString = false;
+  let i = 0;
+  while (i < str.length) {
+    const ch = str[i];
+    if (ch === '"' && str[i - 1] !== '\\') {
+      inString = !inString;
+      out += ch;
+      i++;
+      continue;
+    }
+    if (ch === '{' && str[i + 1] === '{') {
+      const end = str.indexOf('}}', i + 2);
+      if (end !== -1) {
+        const token = str.slice(i, end + 2);
+        const idx = vars.length;
+        vars.push(token);
+        out += inString ? `__${prefix}_${idx}__` : `"__${prefix}_${idx}__"`;
+        i = end + 2;
+        continue;
+      }
+    }
+    out += ch;
+    i++;
+  }
+  return { masked: out, vars };
+};
+
+/**
+ * Replace placeholders injected by maskJsonInterpolations back with the
+ * original {{var}} tokens.
+ */
+const unmaskJsonInterpolations = (str, vars, prefix = 'BRUNO_VAR') => {
+  const re = new RegExp(`"?__${prefix}_(\\d+)__"?`, 'g');
+  return str.replace(re, (m, n) => (vars[Number(n)] !== undefined ? vars[Number(n)] : m));
+};
+
+// ---------------------------------------------------------------------------
+// JSON value merge helpers
+// ---------------------------------------------------------------------------
+
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * Recursively merge a user JSON value with a spec JSON value.
+ *
+ * Rules (when preserveValues=true):
+ *   - Object: walk spec keys; keep user value when present, use spec default otherwise.
+ *             Keys present in user but absent in spec are dropped.
+ *   - Array:  if user array is empty, return spec template.
+ *             Otherwise re-shape each user element against the first spec element as template.
+ *   - Scalar: keep user value unless it is undefined.
+ *
+ * When preserveValues=false the spec value is returned as-is.
+ */
+const mergeJsonValues = (userVal, specVal, preserveValues = true) => {
+  if (!preserveValues) return specVal;
+  if (isPlainObject(specVal) && isPlainObject(userVal)) {
+    const out = {};
+    for (const key of Object.keys(specVal)) {
+      out[key] = key in userVal
+        ? mergeJsonValues(userVal[key], specVal[key], preserveValues)
+        : specVal[key];
+    }
+    return out;
+  }
+  if (Array.isArray(specVal) && Array.isArray(userVal)) {
+    if (userVal.length === 0) return specVal;
+    const template = specVal.length > 0 ? specVal[0] : undefined;
+    if (template === undefined) return userVal;
+    return userVal.map((el) => mergeJsonValues(el, template, preserveValues));
+  }
+  return userVal === undefined ? specVal : userVal;
+};
+
+/**
+ * Merge a user request body (mode=json) with a spec request body.
+ *
+ * Uses disjoint mask prefixes (BRU_U / BRU_S) so user and spec {{var}}
+ * tokens never collide.  Falls back to the verbatim user body when the user
+ * JSON is unparseable (e.g. contains a work-in-progress template).
+ */
+const mergeJsonBody = (userBody, specBody, preserveValues = true) => {
+  if (!preserveValues) return specBody;
+  if (!userBody?.json || !specBody?.json) return specBody;
+  try {
+    const u = maskJsonInterpolations(userBody.json, 'BRU_U');
+    const s = maskJsonInterpolations(specBody.json, 'BRU_S');
+    const merged = mergeJsonValues(JSON.parse(u.masked), JSON.parse(s.masked), preserveValues);
+    let json = JSON.stringify(merged, null, 2);
+    json = unmaskJsonInterpolations(json, u.vars, 'BRU_U');
+    json = unmaskJsonInterpolations(json, s.vars, 'BRU_S');
+    return { ...specBody, mode: 'json', json };
+  } catch (e) {
+    return { ...userBody };
+  }
+};
+
+/**
  * Merge spec params/headers with existing user values.
  * Matches by name + value to correctly handle enum-expanded params (multiple entries with same name).
  * Only preserves the user's enabled state; values come from the spec.
@@ -1695,4 +1806,16 @@ const registerOpenAPISyncIpc = (mainWindow) => {
 
 module.exports = registerOpenAPISyncIpc;
 module.exports.saveSpecAndUpdateMetadata = saveSpecAndUpdateMetadata;
+
+/* istanbul ignore next */
+if (process.env.NODE_ENV === 'test') {
+  module.exports._test = {
+    maskJsonInterpolations,
+    unmaskJsonInterpolations,
+    mergeJsonValues,
+    mergeJsonBody,
+    mergeSpecIntoRequest,
+    compareRequestFields
+  };
+}
 module.exports.cleanupSpecFilesForCollection = cleanupSpecFilesForCollection;
