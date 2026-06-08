@@ -352,9 +352,25 @@ describe('mergeSpecIntoRequest (sync mode)', () => {
     expect(out.request.params.map((p) => p.name)).toEqual(['q', 'p']);
   });
 
+  it('headers: preserves user value for an existing header', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem);
+    const h = out.request.headers.find((x) => x.name === 'H');
+    expect(h.value).toBe('mine');
+  });
+
   it('auth: preserves user auth values when mode matches', () => {
     const out = helpers.mergeSpecIntoRequest(existing, specItem);
     expect(out.request.auth.oauth2.scope).toBe('read');
+  });
+
+  it('body: spec wins when the body mode changed (json -> formUrlEncoded)', () => {
+    const specFormItem = {
+      ...specItem,
+      request: { ...specItem.request, body: { mode: 'formUrlEncoded', formUrlEncoded: [{ name: 'a', value: '' }] } }
+    };
+    const out = helpers.mergeSpecIntoRequest(existing, specFormItem);
+    expect(out.request.body.mode).toBe('formUrlEncoded');
+    expect(out.request.body.formUrlEncoded.map((e) => e.name)).toEqual(['a']);
   });
 
   it('preserves script, tests, and assertions unchanged', () => {

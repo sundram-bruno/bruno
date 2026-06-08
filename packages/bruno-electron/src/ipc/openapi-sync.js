@@ -662,8 +662,8 @@ const mergeSpecIntoRequest = (existingRequest, specItem, { fullReset = false, pr
       url: specItem.request.url, // Option A: URL always follows the spec
       body: mergeBody(existingRequest.request?.body, specItem.request.body, preserveValues),
       auth: mergeAuth(existingRequest.request?.auth, specItem.request.auth, preserveValues),
-      params: mergeFieldListPreserving(specItem.request.params, existingRequest.request?.params, preserveValues) || [],
-      headers: mergeFieldListPreserving(specItem.request.headers, existingRequest.request?.headers, preserveValues) || []
+      params: mergeFieldListPreserving(specItem.request.params, existingRequest.request?.params, preserveValues),
+      headers: mergeFieldListPreserving(specItem.request.headers, existingRequest.request?.headers, preserveValues)
     }
   };
 };
