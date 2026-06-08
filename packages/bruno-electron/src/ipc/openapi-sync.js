@@ -1219,7 +1219,7 @@ const registerOpenAPISyncIpc = (mainWindow) => {
   });
 
   // Get endpoint diff data for visual comparison (spec vs collection)
-  ipcMain.handle('renderer:get-endpoint-diff-data', async (event, { collectionPath, endpointId, newSpec }) => {
+  ipcMain.handle('renderer:get-endpoint-diff-data', async (event, { collectionPath, endpointId, newSpec, preserveValues = true }) => {
     try {
       let brunoConfig;
       try {
@@ -1301,11 +1301,23 @@ const registerOpenAPISyncIpc = (mainWindow) => {
         };
       };
 
+      // EXPECTED column = what sync will actually produce. For an endpoint that
+      // already exists in the collection, that's the merged result (user values +
+      // structural changes), not the raw spec. New endpoints (no actualRequest)
+      // have nothing to preserve, so show the spec as-is.
+      // NOTE: actualRequest is the full parsed item (has a .request property),
+      // matching the shape that mergeSpecIntoRequest expects as its first argument.
+      let specItemForDisplay = specItem;
+      if (specItem && actualRequest) {
+        const merged = mergeSpecIntoRequest(actualRequest, specItem, { preserveValues });
+        specItemForDisplay = { ...specItem, request: merged.request };
+      }
+
       return {
         error: null,
-        // oldData = current collection state, newData = expected from spec
+        // oldData = current collection state, newData = expected from sync
         oldData: transformToVisualFormat(actualRequest),
-        newData: transformToVisualFormat(specItem)
+        newData: transformToVisualFormat(specItemForDisplay)
       };
     } catch (error) {
       console.error('Error getting endpoint diff data:', error);
