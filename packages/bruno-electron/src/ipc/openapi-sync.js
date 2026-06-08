@@ -1314,7 +1314,7 @@ const registerOpenAPISyncIpc = (mainWindow) => {
   });
 
   // Sync modes: 'spec-only' | 'reset' | 'sync' (default)
-  ipcMain.handle('renderer:apply-openapi-sync', async (event, { collectionPath, addNewRequests, removeDeletedRequests, diff, localOnlyToRemove = [], driftedToReset = [], mode = 'sync', endpointDecisions = {} }) => {
+  ipcMain.handle('renderer:apply-openapi-sync', async (event, { collectionPath, addNewRequests, removeDeletedRequests, diff, localOnlyToRemove = [], driftedToReset = [], mode = 'sync', endpointDecisions = {}, preserveValues = true }) => {
     try {
       const { format, brunoConfig, collectionRoot } = loadBrunoConfig(collectionPath);
       const sourceUrl = brunoConfig?.openapi?.[0]?.sourceUrl;
@@ -1518,7 +1518,7 @@ const registerOpenAPISyncIpc = (mainWindow) => {
             const existingFile = findRequestFileOnDisk(collectionPath, endpoint.method.toUpperCase(), normalizedPath);
 
             if (existingFile) {
-              const mergedRequest = mergeSpecIntoRequest(existingFile.request, newItem);
+              const mergedRequest = mergeSpecIntoRequest(existingFile.request, newItem, { preserveValues });
               const content = await stringifyRequestViaWorker(mergedRequest, { format: existingFile.fileFormat });
               await writeFile(existingFile.filePath, content);
             } else {
@@ -1555,7 +1555,7 @@ const registerOpenAPISyncIpc = (mainWindow) => {
           const existingFile = findRequestFileOnDisk(collectionPath, endpoint.method.toUpperCase(), normalizedPath);
 
           if (newItem && existingFile) {
-            const mergedRequest = mergeSpecIntoRequest(existingFile.request, newItem);
+            const mergedRequest = mergeSpecIntoRequest(existingFile.request, newItem, { preserveValues });
             const content = await stringifyRequestViaWorker(mergedRequest, { format: existingFile.fileFormat });
             await writeFile(existingFile.filePath, content);
           }
