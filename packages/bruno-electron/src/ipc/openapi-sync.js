@@ -635,11 +635,10 @@ const mergeWithUserValues = (specItems, existingItems) => {
  * fullReset: true = spec replaces entire request section (reset mode)
  *            false = only override url/body/auth from spec (sync mode)
  */
-const mergeSpecIntoRequest = (existingRequest, specItem, { fullReset = false } = {}) => {
-  const mergedParams = mergeWithUserValues(specItem.request.params, existingRequest.request?.params);
-  const mergedHeaders = mergeWithUserValues(specItem.request.headers, existingRequest.request?.headers);
-
+const mergeSpecIntoRequest = (existingRequest, specItem, { fullReset = false, preserveValues = true } = {}) => {
   if (fullReset) {
+    const mergedParams = mergeWithUserValues(specItem.request.params, existingRequest.request?.params);
+    const mergedHeaders = mergeWithUserValues(specItem.request.headers, existingRequest.request?.headers);
     return {
       ...existingRequest,
       request: {
@@ -655,15 +654,16 @@ const mergeSpecIntoRequest = (existingRequest, specItem, { fullReset = false } =
     };
   }
 
+  // Sync mode: reconcile structure to the spec while preserving the user's values.
   return {
     ...existingRequest,
     request: {
       ...existingRequest.request,
-      url: specItem.request.url,
-      body: specItem.request.body,
-      auth: specItem.request.auth,
-      params: mergedParams || existingRequest.request?.params || [],
-      headers: mergedHeaders || existingRequest.request?.headers || []
+      url: specItem.request.url, // Option A: URL always follows the spec
+      body: mergeBody(existingRequest.request?.body, specItem.request.body, preserveValues),
+      auth: mergeAuth(existingRequest.request?.auth, specItem.request.auth, preserveValues),
+      params: mergeFieldListPreserving(specItem.request.params, existingRequest.request?.params, preserveValues) || [],
+      headers: mergeFieldListPreserving(specItem.request.headers, existingRequest.request?.headers, preserveValues) || []
     }
   };
 };

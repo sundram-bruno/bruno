@@ -308,3 +308,119 @@ describe('mergeBody', () => {
     expect(out.graphql).not.toBe(user.graphql);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 7: mergeSpecIntoRequest (sync mode)
+// ---------------------------------------------------------------------------
+describe('mergeSpecIntoRequest (sync mode)', () => {
+  const existing = {
+    name: 'r', type: 'http-request',
+    request: {
+      method: 'post', url: '{{old}}/x',
+      params: [{ name: 'q', value: 'mine', enabled: true }],
+      headers: [{ name: 'H', value: 'mine', enabled: true }],
+      body: { mode: 'json', json: '{"id":10}' },
+      auth: { mode: 'oauth2', oauth2: { scope: 'read' } },
+      script: { req: 'console.log(1)' }, tests: 'expect(1)', assertions: [{ k: 'a' }]
+    }
+  };
+  const specItem = {
+    name: 'r', type: 'http-request',
+    request: {
+      method: 'post', url: '{{spec}}/x',
+      params: [{ name: 'q', value: '', enabled: true }, { name: 'p', value: '', enabled: true }],
+      headers: [{ name: 'H', value: '', enabled: true }],
+      body: { mode: 'json', json: '{"id":0,"name":""}' },
+      auth: { mode: 'oauth2', oauth2: { scope: '' } }
+    }
+  };
+
+  it('url always follows the spec (Option A)', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem);
+    expect(out.request.url).toBe('{{spec}}/x');
+  });
+
+  it('body: merges user json values into spec structure', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem);
+    expect(JSON.parse(out.request.body.json)).toEqual({ id: 10, name: '' });
+  });
+
+  it('params: preserves user value for existing param, adds new param from spec', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem);
+    const q = out.request.params.find((p) => p.name === 'q');
+    expect(q.value).toBe('mine');
+    expect(out.request.params.map((p) => p.name)).toEqual(['q', 'p']);
+  });
+
+  it('auth: preserves user auth values when mode matches', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem);
+    expect(out.request.auth.oauth2.scope).toBe('read');
+  });
+
+  it('preserves script, tests, and assertions unchanged', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem);
+    expect(out.request.script).toEqual({ req: 'console.log(1)' });
+    expect(out.request.tests).toBe('expect(1)');
+    expect(out.request.assertions).toEqual([{ k: 'a' }]);
+  });
+
+  it('with preserveValues=false: body comes from spec', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem, { preserveValues: false });
+    expect(JSON.parse(out.request.body.json)).toEqual({ id: 0, name: '' });
+  });
+
+  it('with preserveValues=false: param values come from spec', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem, { preserveValues: false });
+    const q = out.request.params.find((p) => p.name === 'q');
+    expect(q.value).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 7: mergeSpecIntoRequest (reset mode unchanged)
+// ---------------------------------------------------------------------------
+describe('mergeSpecIntoRequest (reset mode unchanged)', () => {
+  const existing = {
+    name: 'r', type: 'http-request',
+    request: {
+      method: 'post', url: '{{old}}/x',
+      params: [{ name: 'q', value: 'mine', enabled: true }],
+      headers: [{ name: 'H', value: 'mine', enabled: true }],
+      body: { mode: 'json', json: '{"id":10}' },
+      auth: { mode: 'oauth2', oauth2: { scope: 'read' } },
+      script: { req: 'console.log(1)' }, tests: 'expect(1)', assertions: [{ k: 'a' }]
+    }
+  };
+  const specItem = {
+    name: 'r', type: 'http-request',
+    request: {
+      method: 'post', url: '{{spec}}/x',
+      params: [{ name: 'q', value: '', enabled: true }, { name: 'p', value: '', enabled: true }],
+      headers: [{ name: 'H', value: '', enabled: true }],
+      body: { mode: 'json', json: '{"id":0,"name":""}' },
+      auth: { mode: 'oauth2', oauth2: { scope: '' } }
+    }
+  };
+
+  it('body comes straight from spec in reset mode', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem, { fullReset: true });
+    expect(out.request.body).toEqual(specItem.request.body);
+  });
+
+  it('auth comes straight from spec in reset mode', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem, { fullReset: true });
+    expect(out.request.auth).toEqual(specItem.request.auth);
+  });
+
+  it('method comes from spec in reset mode', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem, { fullReset: true });
+    expect(out.request.method).toBe('post');
+  });
+
+  it('preserves script, tests, and assertions in reset mode', () => {
+    const out = helpers.mergeSpecIntoRequest(existing, specItem, { fullReset: true });
+    expect(out.request.script).toEqual({ req: 'console.log(1)' });
+    expect(out.request.tests).toBe('expect(1)');
+    expect(out.request.assertions).toEqual([{ k: 'a' }]);
+  });
+});
